@@ -38,8 +38,16 @@ func main() {
 		return
 	case "log":
 		fmt.Print(EventLog(pet))
+	case "reset":
+		p := NewPet(1, 0)
+		if err := SavePet(p); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Reset! New pet: %s (%s)\n", p.Name, p.Species)
+		return
 	default:
-		fmt.Fprintf(os.Stderr, "usage: dotpet [status|log|watch]\n")
+		fmt.Fprintf(os.Stderr, "usage: dotpet [status|log|watch|reset]\n")
 		os.Exit(1)
 	}
 

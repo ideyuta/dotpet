@@ -117,6 +117,26 @@ func (r Rarity) Label() string {
 	return ""
 }
 
+// TmuxColor returns the tmux fg color code for this rarity tier.
+// phase is used for Mythic rainbow cycling.
+func (r Rarity) TmuxColor(phase int) string {
+	switch r {
+	case Fine:
+		return "#[fg=#D4D4D4]"
+	case Rare:
+		return "#[fg=#569CD6]"
+	case Epic:
+		return "#[fg=#C586C0]"
+	case Legendary:
+		return "#[fg=#DCDCAA]"
+	case Mythic:
+		colors := []string{"#[fg=#CE9178]", "#[fg=#DCDCAA]", "#[fg=#569CD6]", "#[fg=#C586C0]"}
+		return colors[phase%len(colors)]
+	default:
+		return ""
+	}
+}
+
 func clampRarity(r int) Rarity {
 	if r < 0 {
 		return Normal

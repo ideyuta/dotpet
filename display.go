@@ -22,21 +22,27 @@ func petSprite(p *Pet) string {
 	return info.Frames[phase]
 }
 
-// statusLineSparkle returns animated rarity decoration for tmux.
+const tmuxReset = "#[fg=#858585]"
+
+// statusLineSparkle returns animated rarity decoration for tmux with color.
 func statusLineSparkle(rarity Rarity, phase int) string {
+	color := rarity.TmuxColor(phase)
+	if color == "" {
+		return ""
+	}
 	switch {
 	case rarity >= Mythic:
 		s := []string{"✦✧★", "✧★✦", "★✦✧", "✦★✧"}
-		return s[phase]
+		return color + s[phase] + tmuxReset
 	case rarity >= Legendary:
 		s := []string{"✦ ", "✧ ", "✦ ", " ✧"}
-		return s[phase]
+		return color + s[phase] + tmuxReset
 	case rarity >= Epic:
 		s := []string{"* ", "· ", "* ", "· "}
-		return s[phase]
+		return color + s[phase] + tmuxReset
 	case rarity >= Rare:
 		s := []string{"+ ", "  ", "+ ", "  "}
-		return s[phase]
+		return color + s[phase] + tmuxReset
 	default:
 		return ""
 	}
@@ -58,7 +64,12 @@ func StatusLine(p *Pet) string {
 
 	equip := ""
 	if p.Equipped != nil {
-		equip = " " + p.Equipped.Name
+		color := p.Equipped.Rarity.TmuxColor(phase)
+		if color != "" {
+			equip = " " + color + p.Equipped.Name + tmuxReset
+		} else {
+			equip = " " + p.Equipped.Name
+		}
 	}
 	gen := ""
 	if p.Generation > 1 {
