@@ -5,6 +5,9 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"golang.org/x/sys/unix"
+	"golang.org/x/term"
 )
 
 func main() {
@@ -31,7 +34,7 @@ func main() {
 		if err := SavePet(pet); err != nil {
 			fmt.Fprintf(os.Stderr, "error saving: %v\n", err)
 		}
-		runStatusLoop(pet)
+		runWatchLoop(pet)
 		return
 	case "log":
 		fmt.Print(EventLog(pet))
@@ -46,12 +49,121 @@ func main() {
 	}
 }
 
-// runStatusLoop continuously redraws the status screen with animation.
-// Exits on Ctrl+C.
-func runStatusLoop(pet *Pet) {
-	// Hide cursor
+func runWatchLoop(pet *Pet) {
+	input, needClose := getInput()
+	if input == nil {
+		runSimpleLoop(pet)
+		return
+	}
+	if needClose {
+		defer input.Close()
+	}
+
+	fd := int(input.Fd())
+	oldState, err := term.MakeRaw(fd)
+	if err != nil {
+		runSimpleLoop(pet)
+		return
+	}
+	defer term.Restore(fd, oldState)
+
+	// Re-enable output post-processing so \n produces \r\n.
+	// MakeRaw disables OPOST which breaks line rendering.
+	if t, err := unix.IoctlGetTermios(fd, unix.TIOCGETA); err == nil {
+		t.Oflag |= unix.OPOST
+		unix.IoctlSetTermios(fd, unix.TIOCSETA, t)
+	}
+
 	fmt.Print("\033[?25l")
-	defer fmt.Print("\033[?25h") // Show cursor on exit
+	defer fmt.Print("\033[?25h\033[2J\033[H\r\n")
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+
+	showInventory := false
+	scroll := 0
+
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+
+	keys := make(chan byte, 16)
+	go func() {
+		buf := make([]byte, 1)
+		for {
+			n, err := input.Read(buf)
+			if err != nil || n == 0 {
+				return
+			}
+			keys <- buf[0]
+		}
+	}()
+
+	draw := func() {
+		fmt.Print("\033[H")
+		if showInventory {
+			fmt.Print(InventoryView(pet, scroll))
+		} else {
+			fmt.Print(StatusDetail(pet))
+		}
+		fmt.Print("\033[J") // clear remaining lines below content
+	}
+	draw()
+
+	for {
+		select {
+		case <-sig:
+			return
+		case key := <-keys:
+			switch key {
+			case '2', 'i':
+				showInventory = true
+				scroll = 0
+			case '1', 27: // 1 or Esc
+				showInventory = false
+			case 'j':
+				if showInventory {
+					scroll += 15
+					max := len(pet.Inventory) - 15
+					if max < 0 {
+						max = 0
+					}
+					if scroll > max {
+						scroll = max
+					}
+				}
+			case 'k':
+				if showInventory {
+					scroll -= 15
+					if scroll < 0 {
+						scroll = 0
+					}
+				}
+			case 'q', 3:
+				return
+			default:
+				continue
+			}
+			draw()
+		case <-ticker.C:
+			draw()
+		}
+	}
+}
+
+func getInput() (*os.File, bool) {
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		return os.Stdin, false
+	}
+	f, err := os.Open("/dev/tty")
+	if err != nil {
+		return nil, false
+	}
+	return f, true
+}
+
+func runSimpleLoop(pet *Pet) {
+	fmt.Print("\033[?25l")
+	defer fmt.Print("\033[?25h")
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -59,7 +171,6 @@ func runStatusLoop(pet *Pet) {
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
 
-	// Initial draw
 	fmt.Print("\033[2J\033[H")
 	fmt.Print(StatusDetail(pet))
 

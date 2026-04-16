@@ -2,8 +2,18 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
+)
+
+// Tab represents a detail view tab.
+type Tab int
+
+const (
+	TabStatus    Tab = 0
+	TabInventory Tab = 1
+	TabLog       Tab = 2
 )
 
 func petSprite(p *Pet) string {
@@ -158,6 +168,71 @@ func StatusDetail(p *Pet) string {
 	b.WriteString(hr + "\n")
 	b.WriteString("\n")
 
+	return b.String()
+}
+
+// InventoryView returns the inventory screen as a string.
+func InventoryView(p *Pet, scroll int) string {
+	const W = 50
+	hr := "  " + "─" + strings.Repeat("─", W) + "─"
+
+	var b strings.Builder
+	b.WriteString("\n")
+
+	row(&b, W, fmt.Sprintf("  🎒 もちもの (全%d件)  [1:戻る] [j/k:スクロール]", len(p.Inventory)))
+	b.WriteString(hr + "\n")
+
+	if p.Equipped != nil {
+		row(&b, W, fmt.Sprintf("  🗡️  装備: %s %s (力:%d)", p.Equipped.Rarity, p.Equipped.Name, p.Equipped.Power))
+	} else {
+		row(&b, W, "  🗡️  装備: (なし)")
+	}
+	b.WriteString(hr + "\n")
+
+	if len(p.Inventory) == 0 {
+		row(&b, W, "    (なし)")
+		b.WriteString(hr + "\n")
+		b.WriteString("\n")
+		return b.String()
+	}
+
+	sorted := make([]Item, len(p.Inventory))
+	copy(sorted, p.Inventory)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Rarity != sorted[j].Rarity {
+			return sorted[i].Rarity > sorted[j].Rarity
+		}
+		return sorted[i].Power > sorted[j].Power
+	})
+
+	const pageSize = 15
+	total := len(sorted)
+	if scroll < 0 {
+		scroll = 0
+	}
+	if scroll > total-1 {
+		scroll = total - 1
+	}
+	end := scroll + pageSize
+	if end > total {
+		end = total
+	}
+
+	for _, item := range sorted[scroll:end] {
+		marker := "  "
+		if p.Equipped != nil && item.Name == p.Equipped.Name && item.Power == p.Equipped.Power {
+			marker = "→ "
+		}
+		row(&b, W, fmt.Sprintf("  %s%s %s (力:%d)", marker, item.Rarity, item.Name, item.Power))
+	}
+
+	if total > pageSize {
+		row(&b, W, "")
+		row(&b, W, fmt.Sprintf("  %d-%d / %d件", scroll+1, end, total))
+	}
+
+	b.WriteString(hr + "\n")
+	b.WriteString("\n")
 	return b.String()
 }
 

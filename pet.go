@@ -78,20 +78,7 @@ func (p *Pet) AddItem(item Item) {
 		best := item
 		p.BestItem = &best
 	}
-	if len(p.Inventory) >= 10 {
-		// replace weakest item
-		weakest := 0
-		for i, it := range p.Inventory {
-			if it.Power < p.Inventory[weakest].Power {
-				weakest = i
-			}
-		}
-		if item.Power > p.Inventory[weakest].Power {
-			p.Inventory[weakest] = item
-		}
-	} else {
-		p.Inventory = append(p.Inventory, item)
-	}
+	p.Inventory = append(p.Inventory, item)
 	p.AutoEquip()
 }
 
