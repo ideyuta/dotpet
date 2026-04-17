@@ -11,6 +11,8 @@ import (
 )
 
 func main() {
+	InitLocale()
+
 	pet, err := LoadPet()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -44,7 +46,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Reset! New pet: %s (%s)\n", p.Name, p.Species)
+		fmt.Printf(T("reset_msg"), p.Name, p.Species)
 		return
 	default:
 		fmt.Fprintf(os.Stderr, "usage: dotpet [status|log|watch|reset]\n")

@@ -92,7 +92,7 @@ func StatusDetail(p *Pet) string {
 
 	var b strings.Builder
 
-	const W = 50 // inner width in display columns
+	const W = 50
 	hr := "  " + "─" + strings.Repeat("─", W) + "─"
 
 	b.WriteString("\n")
@@ -107,8 +107,8 @@ func StatusDetail(p *Pet) string {
 		fmt.Sprintf("Lv.%-2d / %d", p.Level, maxLevel),
 		fmt.Sprintf("XP %s %d/%d", xpBar(p), p.XP, p.XPToNext()),
 		powerLine(p),
-		fmt.Sprintf("年齢 %s", formatDuration(age)),
-		fmt.Sprintf("世代 第%d世代%s", p.Generation, legacyStr(p)),
+		fmt.Sprintf("%s %s", T("age"), formatDuration(age)),
+		genDetail(p),
 		equippedShort(p),
 	}
 	for i := 0; i < artRows; i++ {
@@ -128,34 +128,38 @@ func StatusDetail(p *Pet) string {
 
 	// Battle stats
 	b.WriteString(hr + "\n")
-	row(&b, W, "  ⚔️  戦績")
+	row(&b, W, fmt.Sprintf("  %s", T("record_header")))
 	row(&b, W, "")
 	winRate := 0
 	if p.Wins+p.Losses > 0 {
 		winRate = p.Wins * 100 / (p.Wins + p.Losses)
 	}
-	row(&b, W, fmt.Sprintf("  勝利 %-5d   敗北 %-5d   勝率 %3d%%", p.Wins, p.Losses, winRate))
-	row(&b, W, fmt.Sprintf("  総XP %-5d   発見 %-5d アイテム", p.TotalXP, p.ItemsFound))
+	row(&b, W, fmt.Sprintf("  %-6s %-5d   %-6s %-5d   %-4s %3d%%",
+		T("wins"), p.Wins, T("losses"), p.Losses, T("win_rate"), winRate))
+	row(&b, W, fmt.Sprintf("  %-6s %-5d   %-6s %-5d %s",
+		T("total_xp"), p.TotalXP, T("found"), p.ItemsFound, T("items_suffix")))
 
 	if p.BestItem != nil {
 		row(&b, W, "")
-		row(&b, W, fmt.Sprintf("  🏆 最高: %s %s", p.BestItem.Rarity, p.BestItem.Name))
+		row(&b, W, fmt.Sprintf("  🏆 %s: %s %s", T("best"), p.BestItem.Rarity, p.BestItem.Name))
 	}
 
 	// Equipped
 	b.WriteString(hr + "\n")
 	if p.Equipped != nil {
-		row(&b, W, fmt.Sprintf("  🗡️  装備: %s %s (力:%d)", p.Equipped.Rarity, p.Equipped.Name, p.Equipped.Power))
+		row(&b, W, fmt.Sprintf("  🗡️  %s: %s %s (%s:%d)",
+			T("equip_label"), p.Equipped.Rarity, p.Equipped.Name, T("pow_label"), p.Equipped.Power))
 	} else {
-		row(&b, W, "  🗡️  装備: (なし)")
+		row(&b, W, fmt.Sprintf("  🗡️  %s: (%s)", T("equip_label"), T("none")))
 	}
 
-	// Inventory (show last 5 items; full list in inventory tab)
+	// Inventory (show last 5 items)
 	b.WriteString(hr + "\n")
-	row(&b, W, fmt.Sprintf("  🎒 もちもの (%d件)  [2:一覧]", len(p.Inventory)))
+	row(&b, W, fmt.Sprintf("  🎒 %s (%s)  %s",
+		T("inventory"), fmt.Sprintf(T("items_count"), len(p.Inventory)), T("inv_keys")))
 	row(&b, W, "")
 	if len(p.Inventory) == 0 {
-		row(&b, W, "    (なし)")
+		row(&b, W, fmt.Sprintf("    (%s)", T("none")))
 	} else {
 		show := p.Inventory
 		if len(show) > 5 {
@@ -166,19 +170,19 @@ func StatusDetail(p *Pet) string {
 			if p.Equipped != nil && item.Name == p.Equipped.Name && item.Power == p.Equipped.Power {
 				marker = "→ "
 			}
-			row(&b, W, fmt.Sprintf("  %s%s %s (力:%d)", marker, item.Rarity, item.Name, item.Power))
+			row(&b, W, fmt.Sprintf("  %s%s %s (%s:%d)", marker, item.Rarity, item.Name, T("pow_label"), item.Power))
 		}
 		if len(p.Inventory) > 5 {
-			row(&b, W, fmt.Sprintf("    ...他%d件", len(p.Inventory)-5))
+			row(&b, W, fmt.Sprintf("    "+T("others_fmt"), len(p.Inventory)-5))
 		}
 	}
 
 	// Event log
 	b.WriteString(hr + "\n")
-	row(&b, W, "  📜 冒険の記録")
+	row(&b, W, fmt.Sprintf("  %s", T("log_header")))
 	row(&b, W, "")
 	if len(p.EventLog) == 0 {
-		row(&b, W, "    (まだなにもない)")
+		row(&b, W, fmt.Sprintf("    (%s)", T("nothing_yet")))
 	} else {
 		start := 0
 		if len(p.EventLog) > 8 {
@@ -216,18 +220,20 @@ func InventoryView(p *Pet, scroll, cursor int) string {
 	var b strings.Builder
 	b.WriteString("\n")
 
-	row(&b, W, fmt.Sprintf("  🎒 もちもの (全%d件)  [j/k:選択] [e:装備] [1:戻る]", len(p.Inventory)))
+	row(&b, W, fmt.Sprintf("  🎒 %s (%s)  %s",
+		T("inventory"), fmt.Sprintf(T("all_items"), len(p.Inventory)), T("inv_full_keys")))
 	b.WriteString(hr + "\n")
 
 	if p.Equipped != nil {
-		row(&b, W, fmt.Sprintf("  🗡️  装備: %s %s (力:%d)", p.Equipped.Rarity, p.Equipped.Name, p.Equipped.Power))
+		row(&b, W, fmt.Sprintf("  🗡️  %s: %s %s (%s:%d)",
+			T("equip_label"), p.Equipped.Rarity, p.Equipped.Name, T("pow_label"), p.Equipped.Power))
 	} else {
-		row(&b, W, "  🗡️  装備: (なし)")
+		row(&b, W, fmt.Sprintf("  🗡️  %s: (%s)", T("equip_label"), T("none")))
 	}
 	b.WriteString(hr + "\n")
 
 	if len(p.Inventory) == 0 {
-		row(&b, W, "    (なし)")
+		row(&b, W, fmt.Sprintf("    (%s)", T("none")))
 		b.WriteString(hr + "\n")
 		b.WriteString("\n")
 		return b.String()
@@ -256,12 +262,12 @@ func InventoryView(p *Pet, scroll, cursor int) string {
 		} else if p.Equipped != nil && item.Name == p.Equipped.Name && item.Power == p.Equipped.Power {
 			marker = "→ "
 		}
-		row(&b, W, fmt.Sprintf("  %s%s %s (力:%d)", marker, item.Rarity, item.Name, item.Power))
+		row(&b, W, fmt.Sprintf("  %s%s %s (%s:%d)", marker, item.Rarity, item.Name, T("pow_label"), item.Power))
 	}
 
 	if total > pageSize {
 		row(&b, W, "")
-		row(&b, W, fmt.Sprintf("  %d-%d / %d件", scroll+1, end, total))
+		row(&b, W, fmt.Sprintf("  %d-%d / "+T("items_count"), scroll+1, end, total))
 	}
 
 	b.WriteString(hr + "\n")
@@ -272,10 +278,10 @@ func InventoryView(p *Pet, scroll, cursor int) string {
 // EventLog returns recent event log (standalone).
 func EventLog(p *Pet) string {
 	var b strings.Builder
-	b.WriteString("\n  📜 冒険の記録\n")
+	fmt.Fprintf(&b, "\n  %s\n", T("log_header"))
 	b.WriteString("  ───────────────\n")
 	if len(p.EventLog) == 0 {
-		b.WriteString("  (まだなにもない)\n")
+		fmt.Fprintf(&b, "  (%s)\n", T("nothing_yet"))
 	} else {
 		start := 0
 		if len(p.EventLog) > 15 {
@@ -289,7 +295,7 @@ func EventLog(p *Pet) string {
 	return b.String()
 }
 
-// row writes a padded line with no box-drawing borders.
+// row writes a padded line.
 func row(b *strings.Builder, width int, content string) {
 	b.WriteString("  ")
 	b.WriteString(padRight(content, width))
@@ -323,34 +329,37 @@ func formatDuration(d time.Duration) string {
 
 func powerLine(p *Pet) string {
 	if p.Equipped != nil {
-		return fmt.Sprintf("つよさ %d (%d+%d)", p.TotalPower(), p.Power, p.Equipped.Power)
+		return fmt.Sprintf("%s %d (%d+%d)", T("power"), p.TotalPower(), p.Power, p.Equipped.Power)
 	}
-	return fmt.Sprintf("つよさ %d", p.TotalPower())
+	return fmt.Sprintf("%s %d", T("power"), p.TotalPower())
 }
 
 func genLabel(p *Pet) string {
 	if p.Generation > 1 {
-		return fmt.Sprintf("第%d世代", p.Generation)
+		return fmt.Sprintf(T("gen_nth"), p.Generation)
 	}
 	return "      "
 }
 
+func genDetail(p *Pet) string {
+	return fmt.Sprintf(T("gen_nth"), p.Generation) + legacyStr(p)
+}
+
 func equippedShort(p *Pet) string {
 	if p.Equipped != nil {
-		return fmt.Sprintf("装備 %s", p.Equipped.Rarity)
+		return fmt.Sprintf("%s %s", T("equipment"), p.Equipped.Rarity)
 	}
 	return ""
 }
 
 func legacyStr(p *Pet) string {
 	if p.Legacy > 0 {
-		return fmt.Sprintf(" (遺産+%d)", p.Legacy)
+		return fmt.Sprintf(T("legacy_fmt"), p.Legacy)
 	}
 	return ""
 }
 
 // padRight pads a string with spaces to the given display width.
-// Accounts for wide (CJK) characters and emoji taking 2 columns.
 func padRight(s string, width int) string {
 	w := displayWidth(s)
 	if w >= width {
@@ -384,63 +393,48 @@ func displayWidth(s string) int {
 }
 
 func isWide(r rune) bool {
-	// CJK Unified Ideographs
 	if r >= 0x4E00 && r <= 0x9FFF {
 		return true
 	}
-	// CJK Compatibility Ideographs
 	if r >= 0xF900 && r <= 0xFAFF {
 		return true
 	}
-	// Hiragana
 	if r >= 0x3040 && r <= 0x309F {
 		return true
 	}
-	// Katakana
 	if r >= 0x30A0 && r <= 0x30FF {
 		return true
 	}
-	// Halfwidth and Fullwidth Forms
 	if r >= 0xFF00 && r <= 0xFFEF {
 		return true
 	}
-	// CJK Symbols and Punctuation
 	if r >= 0x3000 && r <= 0x303F {
 		return true
 	}
-	// Enclosed CJK Letters
 	if r >= 0x3200 && r <= 0x32FF {
 		return true
 	}
-	// CJK Compatibility
 	if r >= 0x3300 && r <= 0x33FF {
 		return true
 	}
-	// Box Drawing and Miscellaneous symbols (some are wide)
 	if r >= 0x2500 && r <= 0x257F {
-		return false // box drawing is narrow
+		return false
 	}
-	// Braille
 	if r >= 0x2800 && r <= 0x28FF {
 		return false
 	}
-	// Emoji / Symbols
 	if r >= 0x1F300 && r <= 0x1FAFF {
 		return true
 	}
-	// Misc symbols
 	if r >= 0x2600 && r <= 0x27BF {
 		return true
 	}
-	// Hangul
 	if r >= 0xAC00 && r <= 0xD7AF {
 		return true
 	}
-	// Katakana Halfwidth (NOT wide)
 	if r >= 0xFF65 && r <= 0xFF9F {
 		return false
 	}
-	// Fullwidth Latin
 	if r >= 0xFF01 && r <= 0xFF60 {
 		return true
 	}

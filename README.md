@@ -3,7 +3,7 @@
 ```
                                                                             
      /\  /\        __  __         .--.        ᓫ    ᓫ     ᗰ .--. ᗰ       /|       
-    ( *ω*  )     /( ·ᴥ· )\     ( ᗜΘᗜ )     (  ᘏ   )   ( ·ᴥ·    )   .------.   
+    ( *ω*  )     /( ·ᴥ· )\      ( ᗜΘᗜ )      (  ᘏ   )    ( ·ᴥ·    )   .------.   
     (      )~     (      )~     /)    (\      |    |      |      |    >( >| ◉  )  
      \    /       ( |||| )     (/      \)   (>| () |<)    | \  / |    '------'   
       U  U          U  U          ^^          ^    ^      |_/  \_|       \|       
@@ -11,33 +11,34 @@
                                                                             
 ```
 
-> ターミナルに住む放置系ペット。tmux のステータスバーでひっそり冒険し、アイテムを集め、レベルアップし、転生する。
+> An idle terminal pet that lives in your tmux status bar — battling, collecting items, leveling up, and reincarnating on its own.
 
 ```
-ᓚᘏᗢ~ Lv.3 鉄の剣    ᐕᘏᐳ~ Lv.5 銀の盾    ᗜΘᗜ> Lv.2 木の杖
-ᓫᘏᓫ/ Lv.8 金の指輪   ᗰᘏᗰノ Lv.6 闇の斧    ᗱᘏ>。Lv.2 水の珠
+ᓚᘏᗢ~ Lv.3 Iron Sword    ᐕᘏᐳ~ Lv.5 Silver Shield    ᗜΘᗜ> Lv.2 Wood Staff
+ᓫᘏᓫ/ Lv.8 Gold Ring     ᗰᘏᗰノ Lv.6 Shadow Axe      ᗱᘏ>。Lv.2 Aqua Orb
 ```
 
 ## Features
 
-- **ステータスバー常駐** — tmux の右端でシルエット顔文字がアニメーション
-- **完全放置** — 時間経過で XP 獲得、バトル、アイテム発見が自動発生
-- **5.5 億通りのアイテム** — 素材 65 種 × 種類 40 種 × 接頭辞 × 接尾辞 × 属性をプロシージャル生成
-- **6 段階レア度** — ★ ふつう → ★★★★★★ 神話（レア度に応じた色付き表示）
-- **装備オーバーレイ** — 武器・防具がペットの AA に反映、レア度で背景エフェクト変化
-- **手動装備変更** — インベントリからカーソルで選んで装備切替
-- **転生システム** — Lv.20 で次世代へ、遺産ボーナス付き
-- **6 種族** — ホスト名 × ユーザー名のハッシュで決定
+- **Status bar resident** — animated silhouette kaomoji in the right side of tmux
+- **Fully idle** — XP gain, battles, and item discovery happen automatically over time
+- **550M item combos** — 65 materials × 40 types × prefixes × suffixes × elements, procedurally generated
+- **6-tier rarity** — ★ Common → ★★★★★★ Mythic (color-coded display)
+- **Equipment overlay** — weapons and armor reflected on pet ASCII art, rarity effects around it
+- **Manual equipment** — browse inventory with cursor, equip from the list
+- **Reincarnation** — auto-reincarnate at Lv.20, next generation starts with a legacy bonus
+- **6 species** — determined by hostname × username hash
+- **3 languages** — Japanese, English, Chinese — auto-detected from `LANG`
 
 ## Demo
 
-### ステータスバー
+### Status bar
 
 ```
-ᓚᘏᗢ~ Lv.8 竜骨の大剣─覚醒─
+ᓚᘏᗢ~ Lv.8 Dragon Bone Greatsword -Awoken-
 ```
 
-### 詳細画面 (`Prefix+P`)
+### Detail view (`Prefix+P`)
 
 ```
   🐱  Maru-2
@@ -45,17 +46,17 @@
               ▽
         /\  /\      Lv.8  / 20
        ( *ω*  )     XP [████████░░] 82/92
-       (      )~    つよさ 14 (8+6)
-        \    /      年齢 2d 5h
-         U  U       世代 第1世代
-                    装備 ★★★
+       (      )~    Power 14 (8+6)
+        \    /      Age 2d 5h
+         U  U       Gen 1
+                    Equip ★★★
   ────────────────────────────────────────────────────
-    ⚔️  戦績
+    ⚔️  Record
 
-    勝利 58      敗北 3       勝率  95%
-    総XP 271     発見 22    アイテム
+    Wins   58      Losses 3       Rate  95%
+    TotalXP 271     Found  22    items
 
-    🏆 最高: ★★★ ミスリルの大剣
+    🏆 Best: ★★★ Mithril Greatsword
   ────────────────────────────────────────────────────
 ```
 
@@ -65,83 +66,98 @@
 go build -o ~/.local/bin/dotpet .
 ```
 
-### tmux 設定
+### tmux config
 
 ```tmux
-# ステータスバーにペットを表示
+# Show pet in status bar
 set -g status-right "#(~/.local/bin/dotpet)"
 
-# Prefix+P で詳細画面をポップアップ
+# Prefix+P opens detail popup
 bind P display-popup -w 58 -h 80% -E "~/.local/bin/dotpet watch"
 
-# ステータスバーをクリックでもポップアップ
+# Click status bar to open popup
 bind -n MouseDown1StatusRight display-popup -w 58 -h 80% -E "~/.local/bin/dotpet watch"
 ```
 
 ## Usage
 
 ```bash
-dotpet          # ステータスライン（1行、tmux用）
-dotpet status   # 詳細表示
-dotpet watch    # インタラクティブモード
-dotpet log      # 冒険ログ
-dotpet reset    # ペットをリセット
+dotpet          # status line (1 line, for tmux)
+dotpet status   # detail view
+dotpet watch    # interactive mode
+dotpet log      # adventure log
+dotpet reset    # reset pet
 ```
 
-### watch モード
+### Language
 
-| キー | 動作 |
-|------|------|
-| `1` / `Esc` | ステータスに戻る |
-| `2` / `i` | もちもの一覧 |
-| `j` / `k` | カーソル移動 |
-| `e` / `Enter` | 装備変更 |
-| `q` | 終了 |
+Language is auto-detected from `LANG` / `LC_ALL` environment variable.
+
+| Variable | Language |
+|----------|----------|
+| `ja_*` | 日本語 |
+| `en_*` | English |
+| `zh_*` | 中文 |
+
+All text including item names, monster names, and UI labels adapts to the detected language. Items keep the name from the language they were generated in.
+
+### Watch mode
+
+| Key | Action |
+|-----|--------|
+| `1` / `Esc` | Back to status |
+| `2` / `i` | Inventory |
+| `j` / `k` | Cursor move |
+| `e` / `Enter` | Equip item |
+| `q` | Quit |
 
 <details>
 <summary>Game System</summary>
 
-### レベルと経験値
+### Level and XP
 
-1 分経過ごとに 1XP。必要 XP は二次曲線で増加（Lv.1→2: 15XP、Lv.19→20: 435XP）。全体で約 3 日で Lv.20 到達。
+1 XP per minute elapsed. Required XP scales quadratically (Lv.1→2: 15XP, Lv.19→20: 435XP). Roughly 3 days to reach Lv.20.
 
-### 冒険イベント
+### Adventure events
 
-10 分ごとに判定:
+Checked every 10 minutes:
 
-| イベント | 確率 |
-|----------|------|
-| バトル | 25% |
-| アイテム発見 | 10% |
-| 特殊イベント | 10% |
-| 何もなし | 55% |
+| Event | Chance |
+|-------|--------|
+| Battle | 25% |
+| Item find | 10% |
+| Special event | 10% |
+| Nothing | 55% |
 
-### アイテム生成
+### Item generation
 
-`[接頭辞][素材]の[種類][接尾辞]〈属性〉` のパターンで組み合わせ生成。
+Pattern varies by language:
+- **JA:** `[接頭辞][素材]の[種類][接尾辞]〈属性〉`
+- **EN:** `[Prefix] [Material] [Type] [Suffix] <Element>`
+- **ZH:** `[前缀][素材][种类][后缀]〈属性〉`
 
-- 素材 65 種 — 木、鉄、ミスリル、竜骨、混沌の核...
-- 種類 40 種 — 剣、杖、鎧、指輪...
-- 接頭辞 45 種 — 古びた、炎の、神々の...
-- 接尾辞 40 種 — ・改、─覚醒─、[聖]...
-- 属性 15 種 — 火、氷、光、闇、時...
+- 65 materials — Wood, Iron, Mithril, Dragon Bone, Chaos Core...
+- 40 types — Sword, Staff, Armor, Ring...
+- 45 prefixes — Old, Flame, Divine...
+- 40 suffixes — Mk.II, -Awoken-, [Holy]...
+- 15 elements — Fire, Ice, Light, Dark, Time...
 
-### レア度
+### Rarity
 
-| レア度 | 色 |
-|--------|-----|
-| ★ ふつう | — |
-| ★★ 上質 | 白 |
-| ★★★ 希少 | 青 |
-| ★★★★ 秘宝 | 紫 |
-| ★★★★★ 伝説 | 金 |
-| ★★★★★★ 神話 | 虹 |
+| Rarity | Color |
+|--------|-------|
+| ★ Common | — |
+| ★★ Fine | White |
+| ★★★ Rare | Blue |
+| ★★★★ Epic | Purple |
+| ★★★★★ Legendary | Gold |
+| ★★★★★★ Mythic | Rainbow |
 
-高レア装備ではペット周囲にキラキラエフェクトが表示され、神話級は虹色にアニメーションする。
+High-rarity equipment adds sparkle effects around the pet. Mythic tier animates in rainbow colors.
 
-### 転生
+### Reincarnation
 
-Lv.20 到達で自動転生。次世代は遺産ボーナス（+1 つよさ）付きで Lv.1 から再スタート。
+Auto-reincarnate at Lv.20. Next generation gets a legacy bonus (+1 power) and starts from Lv.1.
 
 </details>
 

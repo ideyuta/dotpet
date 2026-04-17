@@ -246,19 +246,14 @@ func DetermineSpecies() string {
 	return speciesList[idx]
 }
 
-var speciesNames = map[string][]string{
-	"cat":  {"Mochi", "Kuro", "Tama", "Hana", "Sora", "Yuki", "Maru", "Niko"},
-	"dog":  {"Pochi", "Shiro", "Riku", "Hachi", "Koro", "Taro", "Gon", "Momo"},
-	"bird": {"Piyo", "Tori", "Kaze", "Hane", "Uzu", "Sui", "Rin", "Fuu"},
-	"frog": {"Kero", "Gama", "Ame", "Numa", "Suzu", "Tsuyu", "Mizu", "Kawa"},
-	"bear": {"Kuma", "Goro", "Mori", "Don", "Yama", "Tetsu", "Genta", "Dai"},
-	"fish": {"Sakana", "Tai", "Nami", "Umi", "Shio", "Kai", "Fugu", "Koi"},
-}
-
 func GenerateName(species string) string {
-	names := speciesNames[species]
+	nameMap := speciesNamesLocale[currentLang]
+	if nameMap == nil {
+		nameMap = speciesNamesLocale[LangEN]
+	}
+	names := nameMap[species]
 	if len(names) == 0 {
-		names = speciesNames["cat"]
+		names = nameMap["cat"]
 	}
 	return fmt.Sprintf("%s-%d", names[rand.Intn(len(names))], rand.Intn(100))
 }

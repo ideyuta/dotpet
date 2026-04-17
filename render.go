@@ -178,7 +178,7 @@ var slotOverlays = map[VisualSlot]slotOverlay{
 }
 
 func applyEquipment(grid [][]rune, colorGrid [][]string, anchors *PetAnchors, item *Item) {
-	slot := ItemVisualSlot(item.Name)
+	slot := ItemVisualSlot(item)
 	overlay, ok := slotOverlays[slot]
 	if !ok {
 		return
