@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -8,6 +9,8 @@ import (
 const (
 	artRows = 7
 	artCols = 14
+
+	ansiReset = "\033[0m"
 )
 
 // animPhase returns 0-3 on a ~3.3s cycle:
@@ -33,25 +36,54 @@ func animPhase() int {
 
 // renderPetArt returns the fully composed 7-line art for the pet,
 // including animation phase, equipment overlay, and rarity effects.
+// Output strings may contain ANSI color codes.
 func renderPetArt(p *Pet) []string {
 	info := speciesData[p.Species]
 	phase := animPhase()
 
 	// 1. Pick base art for this phase
 	art := baseArt(&info.Art, phase)
+	colors := newColorGrid()
 
 	// 2. Apply equipment overlay
 	if p.Equipped != nil {
-		applyEquipment(art, &info.Art.Anchors, p.Equipped)
+		applyEquipment(art, colors, &info.Art.Anchors, p.Equipped)
 	}
 
 	// 3. Apply rarity effects
 	if p.Equipped != nil {
-		applyRarityEffects(art, p.Equipped.Rarity, phase)
+		applyRarityEffects(art, colors, p.Equipped.Rarity, phase)
 	}
 
-	// 4. Convert back to strings
-	return runeGridToStrings(art)
+	// 4. Convert back to strings with ANSI colors
+	return runeGridToColorStrings(art, colors)
+}
+
+// newColorGrid creates a color grid matching the art dimensions.
+// Each cell holds an ANSI color code ("" = no color).
+func newColorGrid() [][]string {
+	grid := make([][]string, artRows)
+	for i := range grid {
+		grid[i] = make([]string, artCols)
+	}
+	return grid
+}
+
+// runeGridToColorStrings merges rune grid with color grid into ANSI-colored strings.
+func runeGridToColorStrings(grid [][]rune, colors [][]string) []string {
+	result := make([]string, len(grid))
+	for i, row := range grid {
+		var b strings.Builder
+		for j, r := range row {
+			if j < len(colors[i]) && colors[i][j] != "" {
+				fmt.Fprintf(&b, "%s%c%s", colors[i][j], r, ansiReset)
+			} else {
+				b.WriteRune(r)
+			}
+		}
+		result[i] = b.String()
+	}
+	return result
 }
 
 // baseArt builds a [][]rune grid from the species art for the given phase.
@@ -145,7 +177,7 @@ var slotOverlays = map[VisualSlot]slotOverlay{
 	},
 }
 
-func applyEquipment(grid [][]rune, anchors *PetAnchors, item *Item) {
+func applyEquipment(grid [][]rune, colorGrid [][]string, anchors *PetAnchors, item *Item) {
 	slot := ItemVisualSlot(item.Name)
 	overlay, ok := slotOverlays[slot]
 	if !ok {
@@ -163,12 +195,16 @@ func applyEquipment(grid [][]rune, anchors *PetAnchors, item *Item) {
 		variant = 1
 	}
 	chars := []rune(overlay.Chars[variant])
+	color := item.Rarity.AnsiColor(0)
 
 	row := grid[anchor.Row]
 	for i, ch := range chars {
 		col := anchor.Col + i
 		if col >= 0 && col < len(row) {
 			row[col] = ch
+			if color != "" {
+				colorGrid[anchor.Row][col] = color
+			}
 		}
 	}
 }
@@ -197,35 +233,50 @@ var sparklePositions = []ArtAnchor{
 	{1, 0}, {5, 13},
 }
 
-func applyRarityEffects(grid [][]rune, rarity Rarity, phase int) {
+func applyRarityEffects(grid [][]rune, colorGrid [][]string, rarity Rarity, phase int) {
 	effect, ok := rarityEffects[rarity]
 	if !ok {
 		return
 	}
 
+	color := rarity.AnsiColor(phase)
+
 	if effect.Surround {
-		// Mythic: fill empty edge positions with cycling chars
-		applySurroundEffect(grid, effect.Chars, phase)
+		applySurroundEffect(grid, colorGrid, effect.Chars, phase, color)
 		return
 	}
 
-	// Place sparkle chars at predefined positions
 	for i := 0; i < effect.Count && i < len(sparklePositions); i++ {
 		pos := sparklePositions[i]
 		if pos.Row >= 0 && pos.Row < len(grid) && pos.Col >= 0 && pos.Col < len(grid[pos.Row]) {
 			if grid[pos.Row][pos.Col] == ' ' {
-				// Cycle through effect chars based on phase and position
 				ci := (phase + i) % len(effect.Chars)
 				grid[pos.Row][pos.Col] = effect.Chars[ci]
+				if color != "" {
+					colorGrid[pos.Row][pos.Col] = color
+				}
 			}
 		}
 	}
 }
 
-func applySurroundEffect(grid [][]rune, chars []rune, phase int) {
+func applySurroundEffect(grid [][]rune, colorGrid [][]string, chars []rune, phase int, color string) {
 	if len(chars) == 0 {
 		return
 	}
+
+	setChar := func(r, c, idx int) int {
+		if r < len(grid) && c >= 0 && c < len(grid[r]) && grid[r][c] == ' ' {
+			ci := (phase + idx) % len(chars)
+			grid[r][c] = chars[ci]
+			if color != "" {
+				colorGrid[r][c] = color
+			}
+			return idx + 1
+		}
+		return idx
+	}
+
 	idx := 0
 	// Top and bottom rows
 	for _, r := range []int{0, 6} {
@@ -233,35 +284,17 @@ func applySurroundEffect(grid [][]rune, chars []rune, phase int) {
 			continue
 		}
 		for c := 0; c < len(grid[r]); c++ {
-			if grid[r][c] == ' ' {
-				ci := (phase + idx) % len(chars)
-				grid[r][c] = chars[ci]
-				idx++
-			}
+			idx = setChar(r, c, idx)
 		}
 	}
 	// Left and right edges of middle rows
 	for r := 1; r < 6 && r < len(grid); r++ {
-		if len(grid[r]) > 0 && grid[r][0] == ' ' {
-			ci := (phase + idx) % len(chars)
-			grid[r][0] = chars[ci]
-			idx++
-		}
+		idx = setChar(r, 0, idx)
 		last := len(grid[r]) - 1
-		if last > 0 && grid[r][last] == ' ' {
-			ci := (phase + idx) % len(chars)
-			grid[r][last] = chars[ci]
-			idx++
+		if last > 0 {
+			idx = setChar(r, last, idx)
 		}
 	}
 }
 
 // ---------- Helpers ----------
-
-func runeGridToStrings(grid [][]rune) []string {
-	result := make([]string, len(grid))
-	for i, row := range grid {
-		result[i] = string(row)
-	}
-	return result
-}

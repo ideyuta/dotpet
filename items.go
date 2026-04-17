@@ -137,6 +137,25 @@ func (r Rarity) TmuxColor(phase int) string {
 	}
 }
 
+// AnsiColor returns the ANSI escape code for this rarity tier (for terminal display).
+func (r Rarity) AnsiColor(phase int) string {
+	switch r {
+	case Fine:
+		return "\033[97m" // bright white
+	case Rare:
+		return "\033[94m" // bright blue
+	case Epic:
+		return "\033[95m" // bright magenta
+	case Legendary:
+		return "\033[93m" // bright yellow
+	case Mythic:
+		colors := []string{"\033[91m", "\033[93m", "\033[94m", "\033[95m"}
+		return colors[phase%len(colors)]
+	default:
+		return ""
+	}
+}
+
 func clampRarity(r int) Rarity {
 	if r < 0 {
 		return Normal

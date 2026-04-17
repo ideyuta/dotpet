@@ -144,19 +144,26 @@ func StatusDetail(p *Pet) string {
 		row(&b, W, "  🗡️  装備: (なし)")
 	}
 
-	// Inventory
+	// Inventory (show last 5 items; full list in inventory tab)
 	b.WriteString(hr + "\n")
-	row(&b, W, "  🎒 もちもの")
+	row(&b, W, fmt.Sprintf("  🎒 もちもの (%d件)  [2:一覧]", len(p.Inventory)))
 	row(&b, W, "")
 	if len(p.Inventory) == 0 {
 		row(&b, W, "    (なし)")
 	} else {
-		for _, item := range p.Inventory {
+		show := p.Inventory
+		if len(show) > 5 {
+			show = show[len(show)-5:]
+		}
+		for _, item := range show {
 			marker := "  "
 			if p.Equipped != nil && item.Name == p.Equipped.Name && item.Power == p.Equipped.Power {
 				marker = "→ "
 			}
 			row(&b, W, fmt.Sprintf("  %s%s %s (力:%d)", marker, item.Rarity, item.Name, item.Power))
+		}
+		if len(p.Inventory) > 5 {
+			row(&b, W, fmt.Sprintf("    ...他%d件", len(p.Inventory)-5))
 		}
 	}
 
@@ -182,15 +189,28 @@ func StatusDetail(p *Pet) string {
 	return b.String()
 }
 
+// SortedInventory returns a copy of the inventory sorted by rarity (desc), then power (desc).
+func SortedInventory(p *Pet) []Item {
+	sorted := make([]Item, len(p.Inventory))
+	copy(sorted, p.Inventory)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Rarity != sorted[j].Rarity {
+			return sorted[i].Rarity > sorted[j].Rarity
+		}
+		return sorted[i].Power > sorted[j].Power
+	})
+	return sorted
+}
+
 // InventoryView returns the inventory screen as a string.
-func InventoryView(p *Pet, scroll int) string {
+func InventoryView(p *Pet, scroll, cursor int) string {
 	const W = 50
 	hr := "  " + "─" + strings.Repeat("─", W) + "─"
 
 	var b strings.Builder
 	b.WriteString("\n")
 
-	row(&b, W, fmt.Sprintf("  🎒 もちもの (全%d件)  [1:戻る] [j/k:スクロール]", len(p.Inventory)))
+	row(&b, W, fmt.Sprintf("  🎒 もちもの (全%d件)  [j/k:選択] [e:装備] [1:戻る]", len(p.Inventory)))
 	b.WriteString(hr + "\n")
 
 	if p.Equipped != nil {
@@ -207,14 +227,7 @@ func InventoryView(p *Pet, scroll int) string {
 		return b.String()
 	}
 
-	sorted := make([]Item, len(p.Inventory))
-	copy(sorted, p.Inventory)
-	sort.Slice(sorted, func(i, j int) bool {
-		if sorted[i].Rarity != sorted[j].Rarity {
-			return sorted[i].Rarity > sorted[j].Rarity
-		}
-		return sorted[i].Power > sorted[j].Power
-	})
+	sorted := SortedInventory(p)
 
 	const pageSize = 15
 	total := len(sorted)
@@ -229,9 +242,12 @@ func InventoryView(p *Pet, scroll int) string {
 		end = total
 	}
 
-	for _, item := range sorted[scroll:end] {
+	for idx, item := range sorted[scroll:end] {
+		absIdx := scroll + idx
 		marker := "  "
-		if p.Equipped != nil && item.Name == p.Equipped.Name && item.Power == p.Equipped.Power {
+		if absIdx == cursor {
+			marker = "▶ "
+		} else if p.Equipped != nil && item.Name == p.Equipped.Name && item.Power == p.Equipped.Power {
 			marker = "→ "
 		}
 		row(&b, W, fmt.Sprintf("  %s%s %s (力:%d)", marker, item.Rarity, item.Name, item.Power))
@@ -339,7 +355,18 @@ func padRight(s string, width int) string {
 
 func displayWidth(s string) int {
 	w := 0
+	inEsc := false
 	for _, r := range s {
+		if r == '\033' {
+			inEsc = true
+			continue
+		}
+		if inEsc {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEsc = false
+			}
+			continue
+		}
 		switch {
 		case r >= 0x1100 && isWide(r):
 			w += 2

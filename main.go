@@ -90,6 +90,7 @@ func runWatchLoop(pet *Pet) {
 
 	showInventory := false
 	scroll := 0
+	cursor := 0
 
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
@@ -106,14 +107,21 @@ func runWatchLoop(pet *Pet) {
 		}
 	}()
 
+	lastOutput := ""
 	draw := func() {
-		fmt.Print("\033[H")
+		var out string
 		if showInventory {
-			fmt.Print(InventoryView(pet, scroll))
+			out = InventoryView(pet, scroll, cursor)
 		} else {
-			fmt.Print(StatusDetail(pet))
+			out = StatusDetail(pet)
 		}
-		fmt.Print("\033[J") // clear remaining lines below content
+		if out == lastOutput {
+			return
+		}
+		lastOutput = out
+		fmt.Print("\033[H")
+		fmt.Print(out)
+		fmt.Print("\033[J")
 	}
 	draw()
 
@@ -126,24 +134,39 @@ func runWatchLoop(pet *Pet) {
 			case '2', 'i':
 				showInventory = true
 				scroll = 0
+				cursor = 0
 			case '1', 27: // 1 or Esc
 				showInventory = false
 			case 'j':
 				if showInventory {
-					scroll += 15
-					max := len(pet.Inventory) - 15
-					if max < 0 {
-						max = 0
+					total := len(pet.Inventory)
+					if cursor < total-1 {
+						cursor++
 					}
-					if scroll > max {
-						scroll = max
+					// auto-scroll: keep cursor visible
+					const pageSize = 15
+					if cursor >= scroll+pageSize {
+						scroll = cursor - pageSize + 1
 					}
 				}
 			case 'k':
 				if showInventory {
-					scroll -= 15
-					if scroll < 0 {
-						scroll = 0
+					if cursor > 0 {
+						cursor--
+					}
+					if cursor < scroll {
+						scroll = cursor
+					}
+				}
+			case 'e', 13: // e or Enter
+				if showInventory && len(pet.Inventory) > 0 {
+					sorted := SortedInventory(pet)
+					if cursor >= 0 && cursor < len(sorted) {
+						eq := sorted[cursor]
+						pet.Equipped = &eq
+						if err := SavePet(pet); err != nil {
+							// silently ignore save error
+						}
 					}
 				}
 			case 'q', 3:
