@@ -24,6 +24,11 @@ func petSprite(p *Pet) string {
 
 const tmuxReset = "#[fg=#858585]"
 
+// sanitizeTmux prevents tmux format injection by breaking #[ sequences.
+func sanitizeTmux(s string) string {
+	return strings.ReplaceAll(s, "#[", "# [")
+}
+
 // statusLineSparkle returns animated rarity decoration for tmux with color.
 func statusLineSparkle(rarity Rarity, phase int) string {
 	color := rarity.TmuxColor(phase)
@@ -59,16 +64,17 @@ func StatusLine(p *Pet) string {
 	}
 
 	if p.LastEvent != "" && time.Since(p.EventAt) < 5*time.Second {
-		return fmt.Sprintf("%s%s %s", sparkle, sprite, p.LastEvent)
+		return fmt.Sprintf("%s%s %s", sparkle, sprite, sanitizeTmux(p.LastEvent))
 	}
 
 	equip := ""
 	if p.Equipped != nil {
+		name := sanitizeTmux(p.Equipped.Name)
 		color := p.Equipped.Rarity.TmuxColor(phase)
 		if color != "" {
-			equip = " " + color + p.Equipped.Name + tmuxReset
+			equip = " " + color + name + tmuxReset
 		} else {
-			equip = " " + p.Equipped.Name
+			equip = " " + name
 		}
 	}
 	gen := ""

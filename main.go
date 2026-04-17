@@ -165,7 +165,7 @@ func runWatchLoop(pet *Pet) {
 						eq := sorted[cursor]
 						pet.Equipped = &eq
 						if err := SavePet(pet); err != nil {
-							// silently ignore save error
+							fmt.Fprintf(os.Stderr, "error saving: %v\n", err)
 						}
 					}
 				}
